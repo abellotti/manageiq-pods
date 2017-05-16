@@ -524,12 +524,12 @@ parameters:
     name: "APPLICATION_IMG_NAME"
     displayName: "Application Image Name"
     description: "This is the Application image name requested to deploy."
-    value: "docker.io/manageiq/manageiq-pods"
+    value: "manageiq/manageiq-pods"
   -
     name: "APPLICATION_IMG_TAG"
     displayName: "Application Image Tag"
     description: "This is the Application image tag/version requested to deploy."
-    value: "app-latest"
+    value: "ext-auth"
   -
     name: "APPLICATION_DOMAIN"
     displayName: "Application Hostname"
