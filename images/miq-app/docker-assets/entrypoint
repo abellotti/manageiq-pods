@@ -1,9 +1,6 @@
 #!/bin/bash
 
-/usr/sbin/crond &
+# dump docker container run variables into a file for systemd to load
+env > /container.env.vars
 
-appliance-initialize.sh
-
-[[ -s /etc/default/evm ]] && source /etc/default/evm
-
-exec ruby /var/www/miq/vmdb/lib/workers/bin/evm_server.rb
+exec "$@"

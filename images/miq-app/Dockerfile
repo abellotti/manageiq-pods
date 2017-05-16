@@ -29,6 +29,9 @@ LABEL name="manageiq" \
       io.openshift.expose-services="443:https" \
       io.openshift.tags="ManageIQ,miq,manageiq"
 
+## To cleanly shutdown systemd, use SIGRTMIN+3
+STOPSIGNAL SIGRTMIN+3
+
 ## Install EPEL repo, yum necessary packages for the build without docs, clean all caches
 RUN yum -y install centos-release-scl-rh && \
     yum -y install --setopt=tsflags=nodocs \
@@ -54,6 +57,7 @@ RUN yum -y install centos-release-scl-rh && \
                    mod_authnz_pam          \
                    mod_intercept_form_submit \
                    mod_lookup_identity     \
+                   mod_auth_mellon         \
                    initscripts             \
                    npm                     \
                    chrony                  \
@@ -63,8 +67,33 @@ RUN yum -y install centos-release-scl-rh && \
                    cronie                  \
                    logrotate               \
                    nmap-ncat               \
+                   http-parser             \
+                   &&                      \
+    yum -y install --setopt=tsflags=nodocs \
+                   ipa-client              \
+                   ipa-admintools          \
+                   certmonger              \
+                   sssd                    \
+                   sssd-dbus               \
+                   c-ares                  \
+                   real-md                 \
+                   adcli                   \
+                   oddjob                  \
+                   oddjob-mkhomedir        \
+                   realmd                  \
+                   samba-common            \
                    &&                      \
     yum clean all
+
+# Systemd cleanup base image
+RUN (cd /lib/systemd/system/sysinit.target.wants && for i in *; do [ $i == systemd-tmpfiles-setup.service ] || rm -vf $i; done) && \
+     rm -vf /lib/systemd/system/multi-user.target.wants/* && \
+     rm -vf /etc/systemd/system/*.wants/* && \
+     rm -vf /lib/systemd/system/local-fs.target.wants/* && \
+     rm -vf /lib/systemd/system/sockets.target.wants/*udev* && \
+     rm -vf /lib/systemd/system/sockets.target.wants/*initctl* && \
+     rm -vf /lib/systemd/system/basic.target.wants/* && \
+     rm -vf /lib/systemd/system/anaconda.target.wants/*
 
 ## GIT clone manageiq-appliance and service UI repo (SUI)
 RUN mkdir -p ${APP_ROOT} && \
@@ -126,8 +155,25 @@ COPY docker-assets/container.data.persist /
 COPY docker-assets/appliance-initialize.sh /bin
 ADD  docker-assets/container-scripts ${CONTAINER_SCRIPTS_ROOT}
 
-RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64
-RUN chmod +x /usr/local/bin/dumb-init
+COPY docker-assets/appliance-entrypoint.sh /bin
+RUN chmod +x /bin/appliance-entrypoint.sh
+COPY docker-assets/appliance-entrypoint.service /usr/lib/systemd/system/appliance-entrypoint.service
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--single-child", "--"]
-CMD ["entrypoint"]
+## Dbus workaround to run non-privileged
+# COPY docker-assets/dbus.service /lib/systemd/system/dbus.service
+
+# we don't enable sssd service as it's only configured for ext-auth.
+# ext-auth appliance startup setup scripts would be enabling it.
+RUN systemctl enable dbus crond appliance-entrypoint
+
+# RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64
+# RUN chmod +x /usr/local/bin/dumb-init
+
+# without this, init won't start the enabled services and exec'ing and starting
+# them reports "Failed to get D-Bus connection: Operation not permitted".
+# VOLUME /run /tmp
+# VOLUME [ "/var/run/dbus/system_bus_socket" ]
+VOLUME [ "/sys/fs/cgroup" ]
+
+ENTRYPOINT [ "entrypoint" ]
+CMD [ "/usr/sbin/init" ]

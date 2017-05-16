@@ -136,6 +136,9 @@ objects:
                 mountPath: "/persistent-region"
           env:
             -
+              name: "APPLICATION_DOMAIN"
+              value: "${APPLICATION_DOMAIN}"
+            -
               name: "APPLICATION_INIT_DELAY"
               value: "${APPLICATION_INIT_DELAY}"
             -
@@ -468,7 +471,7 @@ parameters:
     displayName: "Application Min RAM Requested"
     required: true
     description: "Minimum amount of memory the Application container will need."
-    value: "6144Mi"
+    value: "2048Mi"
   -
     name: "POSTGRESQL_MEM_REQ"
     displayName: "PostgreSQL Min RAM Requested"
@@ -486,7 +489,7 @@ parameters:
     displayName: "Application Max RAM Limit"
     required: true
     description: "Maximum amount of memory the Application container can consume."
-    value: "16384Mi"
+    value: "4096Mi"
   -
     name: "POSTGRESQL_MEM_LIMIT"
     displayName: "PostgreSQL Max RAM Limit"
@@ -523,12 +526,12 @@ parameters:
     name: "APPLICATION_IMG_NAME"
     displayName: "Application Image Name"
     description: "This is the Application image name requested to deploy."
-    value: "docker.io/manageiq/manageiq-pods"
+    value: "manageiq/manageiq-pods"
   -
     name: "APPLICATION_IMG_TAG"
     displayName: "Application Image Tag"
     description: "This is the Application image tag/version requested to deploy."
-    value: "app-latest"
+    value: "ext_auth_rearch"
   -
     name: "APPLICATION_DOMAIN"
     displayName: "Application Hostname"
