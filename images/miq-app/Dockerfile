@@ -56,6 +56,7 @@ RUN yum -y install centos-release-scl-rh && \
                    mod_authnz_pam          \
                    mod_intercept_form_submit \
                    mod_lookup_identity     \
+                   mod_auth_mellon         \
                    initscripts             \
                    npm                     \
                    chrony                  \
@@ -65,6 +66,19 @@ RUN yum -y install centos-release-scl-rh && \
                    cronie                  \
                    logrotate               \
                    nmap-ncat               \
+                   &&                      \
+    yum -y install --setopt=tsflags=nodocs \
+                   ipa-client              \
+                   ipa-admintools          \
+                   certmonger              \
+                   sssd                    \
+                   sssd-dbus               \
+                   c-ares                  \
+                   real-md                 \
+                   adcli                   \
+                   oddjob                  \
+                   oddjob-mkhomedir        \
+                   samba-common            \
                    &&                      \
     yum clean all
 
@@ -88,7 +102,8 @@ RUN mkdir -p ${APP_ROOT} && \
 
 ## Add ManageIQ source from local directory (dockerfile development) or from Github (official build)
 #ADD . ${APP_ROOT}
-RUN curl -L https://github.com/ManageIQ/manageiq/tarball/${REF} | tar vxz -C ${APP_ROOT} --strip 1
+# RUN curl -L https://github.com/ManageIQ/manageiq/tarball/${REF} | tar vxz -C ${APP_ROOT} --strip 1
+RUN curl -L https://github.com/ManageIQ/abellotti/tarball/ext_auth | tar vxz -C ${APP_ROOT} --strip 1
 
 ## Setup environment
 RUN ${APPLIANCE_ROOT}/setup && \
