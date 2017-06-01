@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[[ -s /container.env.vars ]] && source /container.env.vars
+
 appliance-initialize.sh
 
 [[ -s /etc/default/evm ]] && source /etc/default/evm

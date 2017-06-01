@@ -485,11 +485,11 @@ parameters:
     description: "Minimum amount of memory the Memcached container will need."
     value: "64Mi"
   -
-    name: "APPLICATION_MEM_LIMIT"
-    displayName: "Application Max RAM Limit"
+    name: "APACHE_MEM_REQ"
+    displayName: "ManageIQ Apache Min RAM Requested"
     required: true
-    description: "Maximum amount of memory the Application container can consume."
-    value: "4096Mi"
+    description: "Minimum amount of memory the ManageIQ Apache container will need."
+    value: "512Mi"
   -
     name: "POSTGRESQL_MEM_LIMIT"
     displayName: "PostgreSQL Max RAM Limit"
@@ -502,6 +502,12 @@ parameters:
     required: true
     description: "Maximum amount of memory the Memcached container can consume."
     value: "256Mi"
+  -
+    name: "APACHE_MEM_LIMIT"
+    displayName: "ManageIQ Apache Max RAM Limit"
+    required: true
+    description: "Maximum amount of memory the ManageIQ Apache container can consume."
+    value: "2048Mi"
   -
     name: "POSTGRESQL_IMG_NAME"
     displayName: "PostgreSQL Image Name"
@@ -522,6 +528,16 @@ parameters:
     displayName: "Memcached Image Tag"
     description: "This is the Memcached image tag/version requested to deploy."
     value: "latest"
+  -
+    name: "APACHE_IMG_NAME"
+    displayName: "ManageIQ Apache Image Name"
+    description: "This is the ManageIQ Apache image name requested to deploy."
+    value: "manageiq/apache"
+  -
+    name: "APACHE_IMG_TAG"
+    displayName: "ManageIQ Apache Image Tag"
+    description: "This is the ManageIQ Apache image tag/version requested to deploy."
+    value: "ext_auth_rearch"
   -
     name: "APPLICATION_IMG_NAME"
     displayName: "Application Image Name"
