@@ -80,7 +80,11 @@ RUN mkdir -p ${SUI_ROOT} && \
 
 ## Setup environment
 RUN ${APPLIANCE_ROOT}/setup && \
+    rm -f /etc/httpd/conf.d/manageiq-balancer-* && \
+    ln -vs ${APP_ROOT} /opt/manageiq/manageiq && \
     mkdir -p ${APP_ROOT}/log/apache && \
+    mkdir -p ${APP_ROOT}/public && \
+    ln -s /persistent-assets/assets ${APP_ROOT}/public/assets && \
     mkdir -p ${CONTAINER_SCRIPTS_ROOT} && \
     mv /etc/httpd/conf.d/ssl.conf{,.orig} && \
     echo "# This file intentionally left blank. ManageIQ maintains its own SSL configuration" > /etc/httpd/conf.d/ssl.conf 
@@ -97,6 +101,9 @@ RUN cd ${SUI_ROOT} && \
 
 ## Expose required container ports
 EXPOSE 80 443
+
+## Copy Apache configuration files
+COPY docker-assets/apache-conf/*.conf /etc/httpd/conf.d/
 
 ## Copy OpenShift and appliance-initialize scripts
 COPY docker-assets/entrypoint /usr/bin

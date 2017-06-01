@@ -18,10 +18,9 @@ objects:
 - apiVersion: v1
   kind: Service
   metadata:
+    name: "${APACHE_SERVICE_NAME}"
     annotations:
-      description: "Exposes and load balances ManageIQ pods"
-      service.alpha.openshift.io/dependencies: '[{"name":"${DATABASE_SERVICE_NAME}","namespace":"","kind":"Service"},{"name":"${MEMCACHED_SERVICE_NAME}","namespace":"","kind":"Service"}]'
-    name: ${NAME}
+      description: "Exposes ManageIQ Apache"
   spec:
     clusterIP: None
     ports:
@@ -33,6 +32,29 @@ objects:
       port: 443
       protocol: TCP
       targetPort: 443
+    selector:
+      name: ${APACHE_SERVICE_NAME}
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      description: "Exposes and load balances ManageIQ pods"
+      service.alpha.openshift.io/dependencies: '[{"name":"${DATABASE_SERVICE_NAME}","namespace":"","kind":"Service"},{"name":"${MEMCACHED_SERVICE_NAME}","namespace":"","kind":"Service"},{"name":"${APACHE_SERVICE_NAME}","namespace":"","kind":"Service"}]'
+    name: ${NAME}
+  spec:
+    ports:
+    - name: http-ui
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+    - name: http-ws
+      port: 4000
+      protocol: TCP
+      targetPort: 4000
+    - name: http-websocket
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
     selector:
       name: ${NAME}
 - apiVersion: v1
@@ -47,7 +69,7 @@ objects:
       termination: passthrough
     to:
       kind: Service
-      name: ${NAME}
+      name: ${APACHE_SERVICE_NAME}
 - apiVersion: v1
   kind: ImageStream
   metadata:
@@ -73,6 +95,14 @@ objects:
   spec:
     dockerImageRepository: "${MEMCACHED_IMG_NAME}"
 - apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: apache
+    annotations:
+      description: "Keeps track of the Apache image changes"
+  spec:
+    dockerImageRepository: "${APACHE_IMG_NAME}"
+- apiVersion: v1
   kind: PersistentVolumeClaim
   metadata:
     name: "${NAME}-${DATABASE_SERVICE_NAME}"
@@ -92,6 +122,26 @@ objects:
     resources:
       requests:
         storage: ${APPLICATION_REGION_VOLUME_CAPACITY}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: "${NAME}-${APACHE_SERVICE_NAME}"
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: ${APACHE_VOLUME_CAPACITY}
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: "${NAME}-assets"
+  spec:
+    accessModes:
+      - ReadWriteMany
+    resources:
+      requests:
+        storage: ${APPLICATION_ASSETS_VOLUME_CAPACITY}
 - apiVersion: apps/v1beta1
   kind: "StatefulSet"
   metadata:
@@ -112,20 +162,22 @@ objects:
           image: "${APPLICATION_IMG_NAME}:${APPLICATION_IMG_TAG}"
           livenessProbe:
             tcpSocket:
-              port: 443
+              port: 3000
             initialDelaySeconds: 480
             timeoutSeconds: 3
           readinessProbe:
             httpGet:
               path: /
-              port: 443
-              scheme: HTTPS
+              port: 3000
+              scheme: HTTP
             initialDelaySeconds: 200
             timeoutSeconds: 3
           ports:
-          - containerPort: 80
+          - containerPort: 3000
             protocol: TCP
-          - containerPort: 443
+          - containerPort: 4000
+            protocol: TCP
+          - containerPort: 5000
             protocol: TCP
           volumeMounts:
               -
@@ -134,6 +186,9 @@ objects:
               -
                 name: "${NAME}-region"
                 mountPath: "/persistent-region"
+              -
+                name: "${NAME}-assets"
+                mountPath: "/persistent-assets"
           env:
             -
               name: "APPLICATION_DOMAIN"
@@ -171,6 +226,9 @@ objects:
             -
               name: "POSTGRESQL_SHARED_BUFFERS"
               value: "${POSTGRESQL_SHARED_BUFFERS}"
+            -
+              name: "BINDING_ADDRESS"
+              value: "0.0.0.0"
           resources:
             requests:
               memory: "${APPLICATION_MEM_REQ}"
@@ -187,6 +245,10 @@ objects:
            name: "${NAME}-region"
            persistentVolumeClaim:
              claimName: ${NAME}-region
+         -
+           name: "${NAME}-assets"
+           persistentVolumeClaim:
+             claimName: ${NAME}-assets
         terminationGracePeriodSeconds: 90
     volumeClaimTemplates:
       - metadata:
@@ -378,7 +440,79 @@ objects:
                 cpu: "${POSTGRESQL_CPU_REQ}"
               limits:
                 memory: "${POSTGRESQL_MEM_LIMIT}"
-
+- apiVersion: v1
+  kind: "DeploymentConfig"
+  metadata:
+    name: "${APACHE_SERVICE_NAME}"
+    annotations:
+      description: "Defines how to deploy ManageIQ Apache"
+  spec:
+    strategy:
+      type: "Recreate"
+#    triggers:
+#      -
+#        type: "ImageChange"
+#        imageChangeParams:
+#          automatic: true
+#          containerNames:
+#            - "apache"
+#          from:
+#            kind: "ImageStreamTag"
+#            name: "apache:${APACHE_IMG_TAG}"
+#      -
+#        type: "ConfigChange"
+    replicas: 1
+    selector:
+      name: "${APACHE_SERVICE_NAME}"
+    template:
+      metadata:
+        name: "${APACHE_SERVICE_NAME}"
+        labels:
+          name: "${APACHE_SERVICE_NAME}"
+      spec:
+        volumes:
+          -
+            name: "miq-apache-volume"
+            persistentVolumeClaim:
+              claimName: "${NAME}-${APACHE_SERVICE_NAME}"
+          -
+            name: "${NAME}-assets"
+            persistentVolumeClaim:
+              claimName: "${NAME}-assets"
+        containers:
+          -
+            name: "apache"
+            image: "${APACHE_IMG_NAME}:${APACHE_IMG_TAG}"
+            ports:
+              - containerPort: 80
+              - containerPort: 443
+            readinessProbe:
+              timeoutSeconds: 1
+              initialDelaySeconds: 5
+              tcpSocket:
+                port: 443
+            livenessProbe:
+              timeoutSeconds: 1
+              initialDelaySeconds: 30
+              tcpSocket:
+                port: 443
+            volumeMounts:
+              -
+                name: "miq-apache-volume"
+                mountPath: "/persistent"
+              -
+                name: "${NAME}-assets"
+                mountPath: "/persistent-assets"
+            env:
+              -
+                name: "APPLICATION_DOMAIN"
+                value: "${APPLICATION_DOMAIN}"
+            resources:
+              requests:
+                memory: "${APACHE_MEM_REQ}"
+                cpu: "${APACHE_CPU_REQ}"
+              limits:
+                memory: "${APACHE_MEM_LIMIT}"
 parameters:
   -
     name: "NAME"
@@ -453,7 +587,13 @@ parameters:
     displayName: "Application Min CPU Requested"
     required: true
     description: "Minimum amount of CPU time the Application container will need (expressed in millicores)."
-    value: "1000m"
+    value: "900m"
+  -
+    name: "APPLICATION_MEM_LIMIT"
+    displayName: "Application Max RAM Limit"
+    required: true
+    description: "Maximum amount of memory the Application container can consume."
+    value: "16384Mi"
   -
     name: "POSTGRESQL_CPU_REQ"
     displayName: "PostgreSQL Min CPU Requested"
@@ -485,12 +625,6 @@ parameters:
     description: "Minimum amount of memory the Memcached container will need."
     value: "64Mi"
   -
-    name: "APACHE_MEM_REQ"
-    displayName: "ManageIQ Apache Min RAM Requested"
-    required: true
-    description: "Minimum amount of memory the ManageIQ Apache container will need."
-    value: "512Mi"
-  -
     name: "POSTGRESQL_MEM_LIMIT"
     displayName: "PostgreSQL Max RAM Limit"
     required: true
@@ -502,12 +636,6 @@ parameters:
     required: true
     description: "Maximum amount of memory the Memcached container can consume."
     value: "256Mi"
-  -
-    name: "APACHE_MEM_LIMIT"
-    displayName: "ManageIQ Apache Max RAM Limit"
-    required: true
-    description: "Maximum amount of memory the ManageIQ Apache container can consume."
-    value: "2048Mi"
   -
     name: "POSTGRESQL_IMG_NAME"
     displayName: "PostgreSQL Image Name"
@@ -528,6 +656,14 @@ parameters:
     displayName: "Memcached Image Tag"
     description: "This is the Memcached image tag/version requested to deploy."
     value: "latest"
+##############################################################################################3
+## Apache Container Configuration Parameters
+  -
+    name: "APACHE_SERVICE_NAME"
+    required: true
+    displayName: "ManageIQ Apache Service Name"
+    description: "The name of the OpenShift Service exposed for the ManageIQ Apache container."
+    value: "apache"
   -
     name: "APACHE_IMG_NAME"
     displayName: "ManageIQ Apache Image Name"
@@ -538,6 +674,32 @@ parameters:
     displayName: "ManageIQ Apache Image Tag"
     description: "This is the ManageIQ Apache image tag/version requested to deploy."
     value: "ext_auth_rearch"
+  -
+    name: "APACHE_MEM_REQ"
+    displayName: "ManageIQ Apache Min RAM Requested"
+    required: true
+    description: "Minimum amount of memory the ManageIQ Apache container will need."
+    value: "512Mi"
+  -
+    name: "APACHE_MEM_LIMIT"
+    displayName: "ManageIQ Apache Max RAM Limit"
+    required: true
+    description: "Maximum amount of memory the ManageIQ Apache container can consume."
+    value: "2048Mi"
+  -
+    name: "APACHE_VOLUME_CAPACITY"
+    displayName: "Apache Volume Capacity"
+    required: true
+    description: "Volume space available for apache."
+    value: "5Gi"
+  -
+    name: "APACHE_CPU_REQ"
+    displayName: "ManageIQ Apache Min CPU Requested"
+    required: true
+    description: "Minimum amount of CPU time the ManageIQ Apache container will need (expressed in millicores)."
+    value: "100m"
+##############################################################################################3
+## Application Container Configuration Parameters
   -
     name: "APPLICATION_IMG_NAME"
     displayName: "Application Image Name"
@@ -575,6 +737,12 @@ parameters:
     displayName: "Application Region Volume Capacity"
     required: true
     description: "Volume space available for region application data."
+    value: "5Gi"
+  -
+    name: "APPLICATION_ASSETS_VOLUME_CAPACITY"
+    displayName: "Application Assets Volume Capacity"
+    required: true
+    description: "Volume space available for application assets."
     value: "5Gi"
   -
     name: "DATABASE_VOLUME_CAPACITY"

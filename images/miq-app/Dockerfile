@@ -57,7 +57,6 @@ RUN yum -y install centos-release-scl-rh && \
                    mod_authnz_pam          \
                    mod_intercept_form_submit \
                    mod_lookup_identity     \
-                   mod_auth_mellon         \
                    initscripts             \
                    npm                     \
                    chrony                  \
@@ -68,20 +67,6 @@ RUN yum -y install centos-release-scl-rh && \
                    logrotate               \
                    nmap-ncat               \
                    http-parser             \
-                   &&                      \
-    yum -y install --setopt=tsflags=nodocs \
-                   ipa-client              \
-                   ipa-admintools          \
-                   certmonger              \
-                   sssd                    \
-                   sssd-dbus               \
-                   c-ares                  \
-                   real-md                 \
-                   adcli                   \
-                   oddjob                  \
-                   oddjob-mkhomedir        \
-                   realmd                  \
-                   samba-common            \
                    &&                      \
     yum clean all
 
@@ -101,6 +86,7 @@ RUN mkdir -p ${APP_ROOT} && \
     mkdir -p ${SUI_ROOT} && \
     ln -vs ${APP_ROOT} /opt/manageiq/manageiq && \
     curl -L https://github.com/ManageIQ/manageiq-appliance/tarball/${REF} | tar vxz -C ${APPLIANCE_ROOT} --strip 1 && \
+    mkdir -p ${APP_ROOT}/public/assets && \
     curl -L https://github.com/ManageIQ/manageiq-ui-service/tarball/${REF} | tar vxz -C ${SUI_ROOT} --strip 1
 
 ## Add ManageIQ source from local directory (dockerfile development) or from Github (official build)
@@ -147,7 +133,7 @@ RUN source /etc/default/evm && \
     yarn cache clean
 
 ## Expose required container ports
-EXPOSE 80 443
+EXPOSE 3000 4000 5000
 
 ## Copy OpenShift and appliance-initialize scripts
 COPY docker-assets/entrypoint /usr/bin
@@ -155,25 +141,9 @@ COPY docker-assets/container.data.persist /
 COPY docker-assets/appliance-initialize.sh /bin
 ADD  docker-assets/container-scripts ${CONTAINER_SCRIPTS_ROOT}
 
-COPY docker-assets/appliance-entrypoint.sh /bin
-RUN chmod +x /bin/appliance-entrypoint.sh
-COPY docker-assets/appliance-entrypoint.service /usr/lib/systemd/system/appliance-entrypoint.service
+## Install dumb-init
+RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64
+RUN chmod +x /usr/local/bin/dumb-init
 
-## Dbus workaround to run non-privileged
-# COPY docker-assets/dbus.service /lib/systemd/system/dbus.service
-
-# we don't enable sssd service as it's only configured for ext-auth.
-# ext-auth appliance startup setup scripts would be enabling it.
-RUN systemctl enable dbus crond appliance-entrypoint
-
-# RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.0/dumb-init_1.2.0_amd64
-# RUN chmod +x /usr/local/bin/dumb-init
-
-# without this, init won't start the enabled services and exec'ing and starting
-# them reports "Failed to get D-Bus connection: Operation not permitted".
-# VOLUME /run /tmp
-# VOLUME [ "/var/run/dbus/system_bus_socket" ]
-VOLUME [ "/sys/fs/cgroup" ]
-
-ENTRYPOINT [ "entrypoint" ]
-CMD [ "/usr/sbin/init" ]
+ENTRYPOINT [ "/usr/local/bin/dumb-init", "--single-child", "--" ]
+CMD [ "entrypoint" ]
