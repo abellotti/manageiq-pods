@@ -663,16 +663,16 @@ objects:
       type: Recreate
       recreateParams:
         timeoutSeconds: 1200
-    triggers:
-    - type: ImageChange
-      imageChangeParams:
-        automatic: true
-        containerNames:
-        - httpd
-        from:
-          kind: ImageStreamTag
-          name: httpd:${HTTPD_IMG_TAG}
-    - type: ConfigChange
+    # triggers:
+    # - type: ImageChange
+    #   imageChangeParams:
+    #     automatic: true
+    #     containerNames:
+    #     - httpd
+    #     from:
+    #       kind: ImageStreamTag
+    #       name: httpd:${HTTPD_IMG_TAG}
+    # - type: ConfigChange
     replicas: 1
     selector:
       name: "${HTTPD_SERVICE_NAME}"
@@ -891,15 +891,15 @@ parameters:
 - name: APPLICATION_IMG_NAME
   displayName: Application Image Name
   description: This is the Application image name requested to deploy.
-  value: docker.io/manageiq/manageiq-pods
+  value: manageiq/manageiq-pods
 - name: FRONTEND_APPLICATION_IMG_TAG
   displayName: Front end Application Image Tag
   description: This is the ManageIQ Frontend Application image tag/version requested to deploy.
-  value: frontend-latest
+  value: ext-auth-frontend-latest
 - name: BACKEND_APPLICATION_IMG_TAG
   displayName: Back end Application Image Tag
   description: This is the ManageIQ Backend Application image tag/version requested to deploy.
-  value: backend-latest
+  value: ext-auth-backend-latest
 - name: ANSIBLE_IMG_NAME
   displayName: Ansible Image Name
   description: This is the Ansible image name requested to deploy.
@@ -939,16 +939,16 @@ parameters:
 - name: HTTPD_IMG_NAME
   displayName: Apache httpd Image Name
   description: This is the httpd image name requested to deploy.
-  value: docker.io/manageiq/httpd
+  value: manageiq/httpd
 - name: HTTPD_IMG_TAG
   displayName: Apache httpd Image Tag
   description: This is the httpd image tag/version requested to deploy.
-  value: latest
+  value: ext-auth-latest
 - name: HTTPD_CPU_REQ
   displayName: Apache httpd Min CPU Requested
   required: true
   description: Minimum amount of CPU time the httpd container will need (expressed in millicores).
-  value: 500m
+  value: 100m
 - name: HTTPD_MEM_REQ
   displayName: Apache httpd Min RAM Requested
   required: true
