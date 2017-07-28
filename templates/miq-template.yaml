@@ -189,6 +189,16 @@ objects:
     resources:
       requests:
         storage: "${DATABASE_VOLUME_CAPACITY}"
+- apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: "${NAME}-${HTTPD_SERVICE_NAME}"
+  spec:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: "${HTTPD_VOLUME_CAPACITY}"
 - apiVersion: apps/v1beta1
   kind: StatefulSet
   metadata:
@@ -686,7 +696,10 @@ objects:
         labels:
           name: "${HTTPD_SERVICE_NAME}"
       spec:
-        volumes: []
+        volumes:
+        - name: miq-httpd-volume
+          persistentVolumeClaim:
+            claimName: "${NAME}-${HTTPD_SERVICE_NAME}"
         containers:
         - name: httpd
           image: "${HTTPD_IMG_NAME}:${HTTPD_IMG_TAG}"
@@ -705,7 +718,9 @@ objects:
               scheme: HTTPS
             initialDelaySeconds: 10
             timeoutSeconds: 3
-          volumeMounts: []
+          volumeMounts:
+          - name: miq-httpd-volume
+            mountPath: "/persistent"
           env:
           - name: MANAGEIQ_SERVICE_NAME
             value: "${NAME}"
@@ -963,3 +978,8 @@ parameters:
   required: true
   description: Maximum amount of memory the httpd container can consume.
   value: 8192Mi
+- name: HTTPD_VOLUME_CAPACITY
+  displayName: Apache httpd Volume Capacity
+  required: true
+  description: Volume space available for Apache httpd.
+  value: 5Gi
