@@ -44,6 +44,12 @@ objects:
 - apiVersion: v1
   kind: ConfigMap
   metadata:
+    name: "${HTTPD_SERVICE_NAME}-auth-config"
+  data:
+    type: "internal"
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
     name: "${DATABASE_SERVICE_NAME}-configs"
   data:
     01_miq_overrides.conf: |
@@ -700,6 +706,9 @@ objects:
         - name: miq-httpd-volume
           persistentVolumeClaim:
             claimName: "${NAME}-${HTTPD_SERVICE_NAME}"
+        - name: miq-httpd-auth-config
+          configMap:
+            name: "${HTTPD_SERVICE_NAME}-auth-config"
         containers:
         - name: httpd
           image: "${HTTPD_IMG_NAME}:${HTTPD_IMG_TAG}"
@@ -721,6 +730,8 @@ objects:
           volumeMounts:
           - name: miq-httpd-volume
             mountPath: "/persistent"
+          - name: miq-httpd-auth-config
+            mountPath: "/persistent_config"
           env:
           - name: MANAGEIQ_SERVICE_NAME
             value: "${NAME}"
