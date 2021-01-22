@@ -1,9 +1,12 @@
 package miqtools
 
 import (
+	"context"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func addResourceReqs(memLimit, memReq, cpuLimit, cpuReq string, c *corev1.Container) error {
@@ -73,4 +76,14 @@ func addBackupAnnotation(volumesToBackup string, meta *metav1.ObjectMeta) {
 		meta.Annotations = make(map[string]string)
 	}
 	meta.Annotations["backup.velero.io/backup-volumes"] = volumesToBackup
+}
+
+func GetSecretKeyValue(client client.Client, nameSpace string, secretName string, keyName string) string {
+	secretKey := types.NamespacedName{Namespace: nameSpace, Name: secretName}
+	secret := &corev1.Secret{}
+	secretErr := client.Get(context.TODO(), secretKey, secret)
+	if secretErr != nil {
+		return ""
+	}
+	return string(secret.Data[keyName])
 }
