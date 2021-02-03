@@ -388,6 +388,9 @@ func HttpdDeployment(client client.Client, cr *miqv1alpha1.ManageIQ, scheme *run
 		deployment.Spec.Strategy = appsv1.DeploymentStrategy{
 			Type: "Recreate",
 		}
+		if (len(cr.Spec.AppAnnotations) > 0) {
+			deployment.Spec.Template.ObjectMeta.Annotations = cr.Spec.AppAnnotations
+		}
 		deployment.Spec.Template.Spec.Containers = []corev1.Container{container}
 		deployment.Spec.Template.Spec.Volumes = []corev1.Volume{
 			corev1.Volume{

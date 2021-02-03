@@ -38,6 +38,9 @@ spec:
               description: Domain name for the external route. Used for external authentication
                 configuration
               type: string
+            appAnnotations:
+              description: Optional Annotations to apply to the Httpd, Kafka, Memcached, Orchestrator, and PostgresQL Pods
+              type: object
             backupLabelName:
               description: 'This label will be applied to essential resources that
                 need to be backed up (default: manageiq.org/backup)'
