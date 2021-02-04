@@ -21,7 +21,7 @@ type ManageIQSpec struct {
 
 	// Optional Annotations to apply to the Httpd, Kafka, Memcached, Orchestrator and PostgresQL Pods
 	// +optional
-	AppAnnotations map[string]string `json:"appAnnotations"`
+	AppAnnotations map[string]string `json:"appAnnotations,omitempty"`
 
 	// This label will be applied to essential resources that need to be backed up (default: manageiq.org/backup)
 	// +optional
